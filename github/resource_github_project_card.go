@@ -155,6 +155,6 @@ func resourceGithubProjectCardImport(d *schema.ResourceData, meta interface{}) (
 	d.SetId(card.GetNodeID())
 	d.Set("card_id", cardID)
 
-	return []*schema.ResourceData{d}, resourceGithubProjectCardRead(d, meta)
+	return []*schema.ResourceData{d}, nil
 
 }
