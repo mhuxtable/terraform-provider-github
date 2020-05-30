@@ -94,13 +94,12 @@ func resourceGithubProjectCardRead(d *schema.ResourceData, meta interface{}) err
 	// FIXME: Remove URL parsing if a better option becomes available
 	columnURL := card.GetColumnURL()
 	columnIDStr := strings.TrimPrefix(columnURL, client.BaseURL.String()+`projects/columns/`)
-	columnID, err := strconv.ParseInt(columnIDStr, 10, 64)
 	if err != nil {
 		return unconvertibleIdErr(columnIDStr, err)
 	}
 
 	d.Set("note", card.GetNote())
-	d.Set("column_id", columnID)
+	d.Set("column_id", columnIDStr)
 	d.Set("card_id", card.GetID())
 
 	return nil
