@@ -162,11 +162,14 @@ func resourceGithubRepositoryFileCreate(d *schema.ResourceData, meta interface{}
 	}
 
 	log.Printf("[DEBUG] Creating repository file: %s/%s/%s in branch: %s", org, repo, file, branch)
-	_, _, err = client.Repositories.CreateFile(ctx, org, repo, file, opts)
+	resp, _, err := client.Repositories.CreateFile(ctx, org, repo, file, opts)
 	if err != nil {
 		return err
 	}
 
+	d.Set("commit_author", resp.GetCommitter().GetName())
+	d.Set("commit_email", resp.GetCommitter().GetEmail())
+	d.Set("commit_message", resp.GetMessage())
 	d.SetId(fmt.Sprintf("%s/%s", repo, file))
 
 	return resourceGithubRepositoryFileRead(d, meta)
@@ -209,16 +212,6 @@ func resourceGithubRepositoryFileRead(d *schema.ResourceData, meta interface{}) 
 	d.Set("file", file)
 	d.Set("sha", fc.GetSHA())
 
-	log.Printf("[DEBUG] Fetching commit info for repository file: %s/%s/%s", org, repo, file)
-	commit, err := getFileCommit(client, org, repo, file, branch)
-	if err != nil {
-		return err
-	}
-
-	d.Set("commit_author", commit.GetCommit().GetCommitter().GetName())
-	d.Set("commit_email", commit.GetCommit().GetCommitter().GetEmail())
-	d.Set("commit_message", commit.GetCommit().GetMessage())
-
 	return nil
 }
 
@@ -250,10 +243,14 @@ func resourceGithubRepositoryFileUpdate(d *schema.ResourceData, meta interface{}
 	}
 
 	log.Printf("[DEBUG] Updating content in repository file: %s/%s/%s", org, repo, file)
-	_, _, err = client.Repositories.CreateFile(ctx, org, repo, file, opts)
+	resp, _, err := client.Repositories.CreateFile(ctx, org, repo, file, opts)
 	if err != nil {
 		return err
 	}
+
+	d.Set("commit_author", resp.GetCommitter().GetName())
+	d.Set("commit_email", resp.GetCommitter().GetEmail())
+	d.Set("commit_message", resp.GetMessage())
 
 	return resourceGithubRepositoryFileRead(d, meta)
 }
@@ -316,49 +313,4 @@ func checkRepositoryFileExists(client *github.Client, org, repo, file, branch st
 	}
 
 	return nil
-}
-
-func getFileCommit(client *github.Client, org, repo, file, branch string) (*github.RepositoryCommit, error) {
-	ctx := context.WithValue(context.Background(), ctxId, fmt.Sprintf("%s/%s", repo, file))
-	opts := &github.CommitsListOptions{
-		SHA: branch,
-	}
-	allCommits := []*github.RepositoryCommit{}
-	for {
-		commits, resp, err := client.Repositories.ListCommits(ctx, org, repo, opts)
-		if err != nil {
-			return nil, err
-		}
-
-		allCommits = append(allCommits, commits...)
-
-		if resp.NextPage == 0 {
-			break
-		}
-
-		opts.Page = resp.NextPage
-	}
-
-	for _, c := range allCommits {
-		sha := c.GetSHA()
-
-		// Skip merge commits
-		if strings.Contains(c.Commit.GetMessage(), "Merge branch") {
-			continue
-		}
-
-		rc, _, err := client.Repositories.GetCommit(ctx, org, repo, sha)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, f := range rc.Files {
-			if f.GetFilename() == file && f.GetStatus() != "removed" {
-				log.Printf("[DEBUG] Found file: %s in commit: %s", file, sha)
-				return rc, nil
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("Cannot find file %s in repo %s/%s", file, org, repo)
 }

@@ -451,54 +451,12 @@ func TestAccGithubRepository_topics(t *testing.T) {
 	})
 }
 
-func TestAccGithubRepository_autoInitForceNew(t *testing.T) {
+func TestAccGithubRepository_createFromTemplate(t *testing.T) {
 	if err := testAccCheckOrganization(); err != nil {
 		// Required by branch-protection resource used in Step 1
 		t.Skipf("Skipping because %s.", err.Error())
 	}
 
-	var repo github.Repository
-
-	rn := "github_repository.foo"
-	randString := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	name := fmt.Sprintf("tf-acc-test-%s", randString)
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckGithubRepositoryDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccGithubRepositoryConfigAutoInitForceNew(randString),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckGithubRepositoryExists(rn, &repo),
-					resource.TestCheckResourceAttr(rn, "name", name),
-					resource.TestCheckResourceAttr(rn, "auto_init", "false"),
-				),
-			},
-			{
-				Config: testAccGithubRepositoryConfigAutoInitForceNewUpdate(randString),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckGithubRepositoryExists(rn, &repo),
-					resource.TestCheckResourceAttr(rn, "name", name),
-					resource.TestCheckResourceAttr(rn, "auto_init", "true"),
-					resource.TestCheckResourceAttr(rn, "license_template", "mpl-2.0"),
-					resource.TestCheckResourceAttr(rn, "gitignore_template", "Go"),
-				),
-			},
-			{
-				ResourceName:      rn,
-				ImportState:       true,
-				ImportStateVerify: true,
-				ImportStateVerifyIgnore: []string{
-					"auto_init", "license_template", "gitignore_template",
-				},
-			},
-		},
-	})
-}
-
-func TestAccGithubRepository_createFromTemplate(t *testing.T) {
 	var repo github.Repository
 
 	rn := "github_repository.foo"
@@ -942,29 +900,4 @@ resource "github_repository" "foo" {
   topics = [%s]
 }
 `, randString, randString, topicList)
-}
-
-func testAccGithubRepositoryConfigAutoInitForceNew(randString string) string {
-	return fmt.Sprintf(`
-resource "github_repository" "foo" {
-  name      = "tf-acc-test-%s"
-  auto_init = false
-}
-`, randString)
-}
-
-func testAccGithubRepositoryConfigAutoInitForceNewUpdate(randString string) string {
-	return fmt.Sprintf(`
-resource "github_repository" "foo" {
-  name               = "tf-acc-test-%s"
-  auto_init          = true
-  license_template   = "mpl-2.0"
-  gitignore_template = "Go"
-}
-
-resource "github_branch_protection" "repo_name_master" {
-  repository = "${github_repository.foo.name}"
-  branch     = "master"
-}
-`, randString)
 }
