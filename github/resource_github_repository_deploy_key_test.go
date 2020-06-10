@@ -3,6 +3,8 @@ package github
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -53,6 +55,15 @@ func TestSuppressDeployKeyDiff(t *testing.T) {
 func TestAccGithubRepositoryDeployKey_basic(t *testing.T) {
 	if err := testAccCheckOrganization(); err != nil {
 		t.Skipf("Skipping because %s.", err.Error())
+	}
+
+	testUserEmail := os.Getenv("GITHUB_TEST_USER_EMAIL")
+	if testUserEmail == "" {
+		t.Skip("Skipping because `GITHUB_TEST_USER_EMAIL` is not set")
+	}
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("ssh-keygen -t rsa -b 4096 -C %s -N '' -f test-fixtures/id_rsa>/dev/null <<< y >/dev/null", testUserEmail))
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
 	}
 
 	rn := "github_repository_deploy_key.test_repo_deploy_key"

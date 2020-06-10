@@ -87,7 +87,6 @@ func resourceGithubRepository() *schema.Resource {
 			"auto_init": {
 				Type:     schema.TypeBool,
 				Optional: true,
-				ForceNew: true,
 			},
 			"default_branch": {
 				Type:        schema.TypeString,
